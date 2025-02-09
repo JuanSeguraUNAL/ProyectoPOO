@@ -395,6 +395,12 @@ def consultarCliente(con, ventana, frame):
               command=consultar).pack(pady=10)
     tk.Button(consultarClienteFrame, text="Volver al menu de clientes", font=("Arial", 12, "bold"),
               command=lambda: cambiarFrame(consultarClienteFrame, frame)).pack(pady=10)
+
+
+# --------------------------------------------------------- VENTA ---------------------------------------------------------
+
+
+# -------------------------------------------------------------------------------------------------------------------------
 def menu(con):
     ventana = tk.Tk()
     ventana.title('Cervezeria Artesanal')
@@ -456,12 +462,135 @@ def menu(con):
         menuFrame.pack_forget()
         ventasFrame = tk.Frame(ventana)
         ventasFrame.pack()
+        cursorObj = con.cursor()
 
         titulo = tk.Label(ventasFrame, text='MENU DE VENTAS', font=("Arial", 18, "bold"))
         titulo.pack(pady=10)
 
-        boton = tk.Button(ventasFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
-                           command=lambda: volverMenu(ventasFrame)).pack(pady=5)
+        carrito = []
+        ID = None
+
+        def solicitarIDCliente():
+            nonlocal ID
+            id_cliente = entradaIDcliente.get()
+            try:
+                cursorObj.execute(f"SELECT * FROM clientes WHERE noIdCliente = {id_cliente}")
+                cliente = cursorObj.fetchone()
+                if cliente:
+                    entradaIDcliente.config(state='disabled')
+                    botonSolicitarID.config(state='disabled')
+                else:
+                    id_cliente = None
+                ID = int(id_cliente)
+                messagebox.showinfo("Exito", f"Cliente con ID {ID} seleccionado.")
+                entradaIDcliente.config(state='disabled')
+                botonSolicitarID.config(state='disabled')
+            except:
+                messagebox.showerror("Error", "Numero de identificacion del cliente no encontrado.")
+                return
+
+        def agregarProducto():
+            if ID is None:
+                messagebox.showerror("Error", "Primero ingrese el ID del cliente.")
+                return
+
+            codigo_producto = entradaCodigoProducto.get()
+            cantidad = entradaCantidad.get()
+
+            try:
+                codigo_producto = int(codigo_producto)
+                cantidad = int(cantidad)
+            except ValueError:
+                messagebox.showerror("Error", "El código del producto y la cantidad deben ser números enteros.")
+                return
+
+            cursorObj.execute(f"SELECT * FROM productos WHERE noIdProducto = {codigo_producto}")
+            producto = list(cursorObj.fetchone())
+
+            if producto:
+                for compra in carrito:
+                    if compra[0][0] == producto[0]:
+                        compra[1] += cantidad
+                if producto[0] not in [compra[0][0] for compra in carrito]:
+                    carrito.append([producto, cantidad])
+
+                actualizarCarrito()
+            else:
+                messagebox.showerror("Error", "Producto no encontrado.")
+
+
+        def quitarProducto():
+            if ID is None:
+                messagebox.showerror("Error", "Primero ingrese el ID del cliente.")
+                return
+
+            codigo_producto = entradaCodigoProducto.get()
+            cantidad = entradaCantidad.get()
+
+            try:
+                codigo_producto = int(codigo_producto)
+            except ValueError:
+                messagebox.showerror("Error", "El código del producto debe ser un número entero.")
+                return
+
+            try:
+                cantidad = int(cantidad)
+            except ValueError:
+                messagebox.showerror("Error", "La cantidad del producto debe ser un número entero.")
+                return
+
+            for compra in carrito:
+                if compra[0][0] == codigo_producto:
+                    if compra[1] == cantidad or compra[1] < cantidad:
+                        carrito.remove(compra)
+                    else:
+                        compra[1] -= cantidad
+
+                    actualizarCarrito()
+                    return
+
+            messagebox.showerror("Error", "Producto no encontrado en el carrito.")
+
+            print(carrito)
+
+        def actualizarCarrito():
+            for widget in carritoFrame.winfo_children():
+                widget.destroy()
+
+            tk.Label(carritoFrame, text="Carrito de Compras", font=("Arial", 14, "bold")).pack(pady=10)
+
+            for producto, cantidad in carrito:
+                tk.Label(carritoFrame, text=f"{producto[1]} - Cantidad: {cantidad} - Precio: {producto[5]}",
+                         font=("Arial", 12)).pack()
+
+        tk.Label(ventasFrame, text="Ingrese el ID del cliente:", font=("Arial", 12)).pack(pady=10)
+        entradaIDcliente = tk.Entry(ventasFrame)
+        entradaIDcliente.pack()
+        botonSolicitarID = tk.Button(ventasFrame, text="Confirmar ID", font=("Arial", 12), command=solicitarIDCliente)
+        botonSolicitarID.pack(pady=10)
+
+        tk.Label(ventasFrame, text="Ingrese el código del producto:", font=("Arial", 12)).pack(pady=10)
+        entradaCodigoProducto = tk.Entry(ventasFrame)
+        entradaCodigoProducto.pack()
+
+        tk.Label(ventasFrame, text="Ingrese la cantidad:", font=("Arial", 12)).pack(pady=10)
+        entradaCantidad = tk.Entry(ventasFrame)
+        entradaCantidad.pack()
+
+        botonAgregar = tk.Button(ventasFrame, text="Agregar producto", font=("Arial", 12), command=agregarProducto)
+        botonAgregar.pack(pady=10)
+
+        botonQuitar = tk.Button(ventasFrame, text="Quitar producto", font=("Arial", 12), command=quitarProducto)
+        botonQuitar.pack(pady=10)
+
+        carritoFrame = tk.Frame(ventasFrame)
+        carritoFrame.pack(pady=20)
+
+        botonVolver = tk.Button(ventasFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
+                                command=lambda: volverMenu(ventasFrame))
+        botonVolver.pack(pady=5)
+
+
 
     def menuFactura():
         menuFrame.pack_forget()
