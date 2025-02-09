@@ -344,8 +344,8 @@ def consultarProducto(con, ventana, frame):
                 fechaVn = row[3]
                 precioP = row[4]
                 precioV = row[5]
-                tk.Label(consultarProductoFrame, text=f'El nombre del producto es: {nombre} que corresponde al codigo: {codigo}', font=('Arial', 12)).pack(pady=10)
-                tk.Label(consultarProductoFrame, text=f'La medida del producto es: {medida}', font=('Arial', 12)).pack(pady=10)
+                tk.Label(consultarProductoFrame, text=f'El nombre del producto es: {nombre.strip()} que corresponde al codigo: {codigo}', font=('Arial', 12)).pack(pady=10)
+                tk.Label(consultarProductoFrame, text=f'La medida del producto es: {medida.strip()}', font=('Arial', 12)).pack(pady=10)
                 tk.Label(consultarProductoFrame, text=f'La fecha de vencimiento del producto es: {fechaVn}', font=('Arial', 12)).pack(pady=10)
                 tk.Label(consultarProductoFrame, text=f'El precio de Producción es: {precioP}', font=('Arial', 12)).pack(pady=10)
                 tk.Label(consultarProductoFrame, text=f'El precio de Venta es: {precioV}', font=('Arial', 12)).pack(pady=10)
@@ -398,10 +398,10 @@ def consultarCliente(con, ventana, frame):
                 direccion = row[3]
                 telefono = row[4]
                 correo = row[5]
-                tk.Label(consultarClienteFrame, text=f'El nombre completo del cliente es: {nombre} {apellido} que corresponde al numero de identificacion: {codigo}', font=('Arial', 12)).pack(pady=10)
-                tk.Label(consultarClienteFrame, text=f'La dirección del cliente es: {direccion}', font=('Arial', 12)).pack(pady=10)
+                tk.Label(consultarClienteFrame, text=f'El nombre completo del cliente es: {nombre.strip()} {apellido.strip()} que corresponde al numero de identificacion: {codigo}', font=('Arial', 12)).pack(pady=10)
+                tk.Label(consultarClienteFrame, text=f'La dirección del cliente es: {direccion.strip()}', font=('Arial', 12)).pack(pady=10)
                 tk.Label(consultarClienteFrame, text=f'El teléfono del cliente es: {telefono}', font=('Arial', 12)).pack(pady=10)
-                tk.Label(consultarClienteFrame, text=f'El correo del cliente es: {correo}', font=('Arial', 12)).pack(pady=10)
+                tk.Label(consultarClienteFrame, text=f'El correo del cliente es: {correo.strip()}', font=('Arial', 12)).pack(pady=10)
 
         except Exception as e:
             messagebox.showerror("Error", f"Error al insertar en la base de datos. \n{e}")
@@ -563,7 +563,6 @@ def menu(con):
 
             messagebox.showerror("Error", "Producto no encontrado en el carrito.")
 
-            print(carrito)
 
         def actualizarCarrito():
             for widget in carritoFrame.winfo_children():
@@ -592,9 +591,12 @@ def menu(con):
             cliente = cursorObj.fetchone()
 
             fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            nombre = cliente[1]
-            direccion = cliente[5]
+            nombre = cliente[1].strip()
+            apellido = cliente[2].strip()
+            direccion = cliente[3].strip()
+            correo = cliente[5].strip()
             cedula = ID
+
 
             productos = [compra[0] for compra in carrito]
             cantidad = [compra[1] for compra in carrito]
@@ -603,47 +605,77 @@ def menu(con):
 
             cursorObj.execute(f"SELECT noFactura FROM facturas")
 
-            numFacturas = cursorObj.fetchone()
-            print(numFacturas)
+            numFacturas = cursorObj.fetchall()
 
             if numFacturas is None:
                 noFactura = 1
             else:
-                noFactura = numFacturas[0] + 1
+                noFactura = numFacturas[-1][0] + 1
 
-            factura = f"""
-                ===========================================
-                                FACTURA
-                ===========================================
-                No. de factura: {noFactura}
-                Fecha: {fecha}
-                Cliente: {nombre}
-                Dirección: {direccion}
-                Cédula/RUC: {cedula}
+            factura_texto = """
+            ============================================
+                             FACTURA
+            ============================================
+            No. de factura: {:<5}
+            Fecha: {}
+            Cliente: {} {}
+            Dirección: {}
+            Cédula/RUC: {}
 
-                {'No.':<5} {'Producto':<20} {'Cant.':<10} {'P. Unitario':<12} {'Total':<10}\n"""
+            {:<4} {:<20} {:<8} {:<12} {:<12}
+            ------------------------------------------------------------""".format(
+                noFactura, fecha, nombre, apellido, direccion, cedula,
+                "No.", "Producto", "Cant.", "P. Unitario", "Total"
+            )
 
             for i, producto in enumerate(productos):
-                factura += f"                {i:<5} {producto[1]:<20} {cantidad[i]:<10.2f} ${producto[5]:<11.2f} ${producto[5]*cantidad[i]:<10.2f}\n"
+                nombre_producto = producto[1][:20]  # Asegurar máximo 20 caracteres
+                factura_texto += "\n            {:<4} {:<20} {:<8.2f} ${:<11.2f} ${:<11.2f}".format(
+                    i, nombre_producto.strip(), cantidad[i], producto[5], producto[5] * cantidad[i]
+                )
 
-            factura += f"""
-                --------------------------------------------------
-                TOTAL: ${total:.2f}
-                ===========================================
-                ¡Gracias por su compra!
-                """
+            factura_texto += """\n            ------------------------------------------------------------
+            TOTAL: ${:.2f}
+            ============================================
+                    ¡Gracias por su compra!
+            """.format(total)
+
+
+            # Ajustar tamaño del cuadro de texto
+            lineas = factura_texto.count("\n") + 2
+            ancho_max = max(len(linea) for linea in factura_texto.split("\n"))
+
+            # Crear el widget de texto sin bordes y bien alineado
+            text_widget = tk.Text(facturaFrame, font=("Courier", 12), wrap="none",
+                                  height=lineas, width=ancho_max,
+                                  bd=0, highlightthickness=0, relief="flat")
+            text_widget.pack(pady=10, padx=10)
+
+            # Insertar y centrar la factura
+            text_widget.insert("1.0", factura_texto)
+            text_widget.config(state="disabled")
 
             cursorObj.execute(f"INSERT INTO facturas VALUES ({noFactura}, {ID},{total},'{fecha}')")
             # Aseguramos la persistencia con el commit
             con.commit()
 
             # ENVIAR AL E-MAIL
-            remitente = "cerveceriaartesanalsa@gmail.com"
+            remitente = "cerveceriaartesanalsa1@gmail.com"
 
             email = EmailMessage()
-            
+            email["From"] = remitente
+            email["To"] = correo
+            email["Subject"] = "Factura de compra Cerveceria Artesanal S.A"
+            email.set_content(factura_texto)
 
-            tk.Label(facturaFrame, text=factura, font=("Arial", 12)).pack(pady=10)
+            smtp = smtplib.SMTP_SSL("smtp.gmail.com")
+            smtp.login(remitente, 'wlxn dyfn octi licu')
+            smtp.sendmail(remitente, correo, email.as_string())
+            messagebox.showinfo("Factura", "La factura ha sido enviada correctamente")
+            smtp.quit()
+
+            botonVolver = tk.Button(facturaFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
+                                    command=lambda: volverMenu(facturaFrame)).pack(pady=5)
 
 
         tk.Label(ventasFrame, text="Ingrese el ID del cliente:", font=("Arial", 12)).pack(pady=10)
@@ -676,28 +708,13 @@ def menu(con):
                                 command=lambda: volverMenu(ventasFrame)).pack(pady=5)
 
 
-
-    def menuFactura():
-        menuFrame.pack_forget()
-        facturaFrame = tk.Frame(ventana)
-        facturaFrame.pack()
-
-        titulo = tk.Label(facturaFrame, text='IMPRESION DE FACTURA', font=("Arial", 18, "bold"))
-        titulo.pack(pady=10)
-
-        boton = tk.Button(facturaFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
-                          command=lambda: volverMenu(facturaFrame)).pack(pady=5)
-
-
     boton1 = tk.Button(menuFrame, text="Menú de gestion de productos", font=("Arial", 12), width=30,
                        command= menuProductos).pack(pady=5)
     boton2 = tk.Button(menuFrame, text="Menú de gestion de clientes", font=("Arial", 12), width=30,
                        command= menuClientes).pack(pady=5)
     boton3 = tk.Button(menuFrame, text="Venta de Productos", font=("Arial", 12), width=30,
                        command= menuVentas).pack(pady=5)
-    boton4 = tk.Button(menuFrame, text="Impresion de Facturas", font=("Arial", 12), width=30,
-                       command= menuFactura).pack(pady=5)
-    boton5 = tk.Button(menuFrame, text="Salir del Programa", font=("Arial", 12), width=30,
+    boton4 = tk.Button(menuFrame, text="Salir del Programa", font=("Arial", 12), width=30,
                        command= ventana.quit).pack(pady=5)
 
     ventana.mainloop()
