@@ -3,6 +3,8 @@ from sqlite3 import Error
 from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox
+from email.message import EmailMessage
+import smtplib
 
 def conexionBD():
     try:
@@ -41,6 +43,20 @@ def crearTablaClientes(con):
                                                telefono integer NOT NULL,
                                                correo text NOT NULL,
                                                PRIMARY KEY(noIdCliente))'''
+    #creamos la cadena con el sql a ejecutar
+    cursorObj.execute(cad)
+    #ejecutamos la cadena con el metodo execute
+    con.commit()
+    #aseguramos la persistencia con el commit
+
+def crearTablaFacturas(con):
+    cursorObj=con.cursor()
+    #recorremos la BD con el objeto de Conexion
+    cad='''CREATE TABLE IF NOT EXISTS facturas(noFactura integer,
+                                               noIdCliente integer NOT NULL,
+                                               pago integer NOT NULL,
+                                               fecha date NOT NULL,
+                                               PRIMARY KEY(noFactura))'''
     #creamos la cadena con el sql a ejecutar
     cursorObj.execute(cad)
     #ejecutamos la cadena con el metodo execute
@@ -397,10 +413,6 @@ def consultarCliente(con, ventana, frame):
               command=lambda: cambiarFrame(consultarClienteFrame, frame)).pack(pady=10)
 
 
-# --------------------------------------------------------- VENTA ---------------------------------------------------------
-
-
-# -------------------------------------------------------------------------------------------------------------------------
 def menu(con):
     ventana = tk.Tk()
     ventana.title('Cervezeria Artesanal')
@@ -563,6 +575,77 @@ def menu(con):
                 tk.Label(carritoFrame, text=f"{producto[1]} - Cantidad: {cantidad} - Precio: {producto[5]}",
                          font=("Arial", 12)).pack()
 
+        def factura():
+            if carrito == []:
+                messagebox.showerror("Error", "El carrito se encuentra vacío.")
+                return
+
+            ventasFrame.pack_forget()
+            facturaFrame = tk.Frame(ventana)
+            facturaFrame.pack()
+
+            titulo = tk.Label(facturaFrame, text='FACTURA', font=("Arial", 18, "bold"))
+            titulo.pack(pady=10)
+
+            cursorObj.execute(f"SELECT * FROM clientes WHERE noIdCliente = {ID}")
+
+            cliente = cursorObj.fetchone()
+
+            fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            nombre = cliente[1]
+            direccion = cliente[5]
+            cedula = ID
+
+            productos = [compra[0] for compra in carrito]
+            cantidad = [compra[1] for compra in carrito]
+
+            total =sum(producto[5] * n for producto, n  in zip(productos,cantidad))
+
+            cursorObj.execute(f"SELECT noFactura FROM facturas")
+
+            numFacturas = cursorObj.fetchone()
+            print(numFacturas)
+
+            if numFacturas is None:
+                noFactura = 1
+            else:
+                noFactura = numFacturas[0] + 1
+
+            factura = f"""
+                ===========================================
+                                FACTURA
+                ===========================================
+                No. de factura: {noFactura}
+                Fecha: {fecha}
+                Cliente: {nombre}
+                Dirección: {direccion}
+                Cédula/RUC: {cedula}
+
+                {'No.':<5} {'Producto':<20} {'Cant.':<10} {'P. Unitario':<12} {'Total':<10}\n"""
+
+            for i, producto in enumerate(productos):
+                factura += f"                {i:<5} {producto[1]:<20} {cantidad[i]:<10.2f} ${producto[5]:<11.2f} ${producto[5]*cantidad[i]:<10.2f}\n"
+
+            factura += f"""
+                --------------------------------------------------
+                TOTAL: ${total:.2f}
+                ===========================================
+                ¡Gracias por su compra!
+                """
+
+            cursorObj.execute(f"INSERT INTO facturas VALUES ({noFactura}, {ID},{total},'{fecha}')")
+            # Aseguramos la persistencia con el commit
+            con.commit()
+
+            # ENVIAR AL E-MAIL
+            remitente = "cerveceriaartesanalsa@gmail.com"
+
+            email = EmailMessage()
+            
+
+            tk.Label(facturaFrame, text=factura, font=("Arial", 12)).pack(pady=10)
+
+
         tk.Label(ventasFrame, text="Ingrese el ID del cliente:", font=("Arial", 12)).pack(pady=10)
         entradaIDcliente = tk.Entry(ventasFrame)
         entradaIDcliente.pack()
@@ -586,9 +669,11 @@ def menu(con):
         carritoFrame = tk.Frame(ventasFrame)
         carritoFrame.pack(pady=20)
 
+        botonFactura = tk.Button(ventasFrame, text="Finalizar compra", font=("Arial", 12), width=30,
+                                command=lambda: factura()).pack(pady=5)
+
         botonVolver = tk.Button(ventasFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
-                                command=lambda: volverMenu(ventasFrame))
-        botonVolver.pack(pady=5)
+                                command=lambda: volverMenu(ventasFrame)).pack(pady=5)
 
 
 
@@ -621,6 +706,7 @@ def main():
     miCon = conexionBD()
     crearTablaProductos(miCon)
     crearTablaClientes(miCon)
+    crearTablaFacturas(miCon)
     menu(miCon)
     cerrarBD(miCon)
 
