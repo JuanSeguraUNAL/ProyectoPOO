@@ -5,7 +5,9 @@ import tkinter as tk
 from tkinter import messagebox
 from email.message import EmailMessage
 import smtplib
+from validate_email_address import validate_email
 
+# Funcion para establecer la conexion con la base de datos
 def conexionBD():
     try:
         con=sqlite3.connect('BaseDatosCerveceria.db')
@@ -14,31 +16,40 @@ def conexionBD():
     except Error:
         print(Error)
 
+# Funcion para cerrar la base de datos
 def cerrarBD(con):
     con.close()
 
+# Clase EntidadBase (Clase padre de Productos y Clientes)
 class EntidadBase:
     def __init__(self):
+        # Asignar el atributo privado de ID
         self.__id = None
 
+    # Setter para modificar el ID
     def set_id(self,codigo):
         self.__id = codigo
-    
+
+    # Getter para acceder al ID
     def get_id(self):
         return self.__id
-    
+
+    # Definir el metodo para consultar una entidad (Cliente o producto) dado su identificador unico (Se considera como parametro la tabla a consultar en la BD)
     def consultarEntidad(self,con, ventana, frame, nombretabla):
         # Recorremos la BD con el objeto de Conexion
         cursorObj = con.cursor()
 
+        # Establecer el frame a mostrar
         frame.pack_forget()
         consultarFrame = tk.Frame(ventana)
         consultarFrame.pack()
 
+        # Entrada al usuario para ingresar el codigo de identificador unico
         tk.Label(consultarFrame, text='Codigo:', font=('Arial', 12)).pack(pady=10)
         entradaID = tk.Entry(consultarFrame)
         entradaID.pack()
-        
+
+        # Funcion a ejecutar una vez presionado el boton, manejando los posibles errores
         def consultar():
             try:
                 self.set_id(entradaID.get())
@@ -83,7 +94,9 @@ class EntidadBase:
         tk.Button(consultarFrame, text="Volver al menu anterior", font=("Arial", 12, "bold"),
                   command=lambda: cambiarFrame(consultarFrame, frame)).pack(pady=10)
 
+# Clase de ventas
 class Ventas:
+    # Metodo para solicitar el ID del cliente
     def solicitarIDCliente(self, entradaIDcliente,botonSolicitarID, cursorObj):
         id_cliente = entradaIDcliente.get()
         try:
@@ -101,7 +114,8 @@ class Ventas:
         except:
             messagebox.showerror("Error", "Numero de identificacion del cliente no encontrado.")
         return ID
-    
+
+    # Metodo para agregar un producto al carrito de mercado
     def agregarProducto(self,ID,entradaIDcliente,botonSolicitarID, entradaCodigoProducto, entradaCantidad, cursorObj, carrito, actualizarCarrito):
             if ID is None:
                 messagebox.showerror("Error", "Primero ingrese el ID del cliente.")
@@ -130,7 +144,8 @@ class Ventas:
                 actualizarCarrito()
             else:
                 messagebox.showerror("Error", "Producto no encontrado.")
-                
+
+    # Metodo para eliminar un producto del carrito de mercado
     def quitarProducto(self,ID, entradaCodigoProducto, entradaCantidad, carrito, actualizarCarrito):
             if ID is None:
                 messagebox.showerror("Error", "Primero ingrese el ID del cliente.")
@@ -163,8 +178,9 @@ class Ventas:
 
             messagebox.showerror("Error", "Producto no encontrado en el carrito.")
 
-
+# Clase de Productos que hereda el atributo y metodo de la clase EntidadBase
 class Productos(EntidadBase):
+    # Atributos de la clase Productos
     def __init__(self):
         super().__init__()
         self.nombreProducto=None
@@ -173,6 +189,7 @@ class Productos(EntidadBase):
         self.precioProduccion=None
         self.precioVenta=None
 
+    # Metodo para crear table de productos en la base de datos
     def crearTablaProductos(self,con):
         cursorObj=con.cursor()
         #recorremos la BD con el objeto de Conexion
@@ -189,14 +206,17 @@ class Productos(EntidadBase):
         con.commit()
         #aseguramos la persistencia con el commit
 
+    # Metodo para crear u nuevo producto
     def crearNuevoProducto(self,con, ventana, frame):
         # Recorremos la BD con el objeto de Conexion
         cursorObj = con.cursor()
 
+        # Establecer el frame de la interfaz para crear nuevo producto
         frame.pack_forget()
         crearProductoFrame = tk.Frame(ventana)
         crearProductoFrame.pack()
 
+        # Solicitud de entradas
         tk.Label(crearProductoFrame, text='Crear nuevo producto', font=("Arial", 18, "bold")).pack(pady=10)
         tk.Label(crearProductoFrame, text="Rellene los siguientes campos:", font=("Arial", 12)).pack(pady=10)
 
@@ -219,6 +239,7 @@ class Productos(EntidadBase):
         entradaPV = tk.Entry(crearProductoFrame)
         entradaPV.pack()
 
+        # Funcion a ejecutar una vez presionado el boton de "Guardar producto" con manejo de posibles errores de tipos de dato de entrada
         def guardar():
             try:
                 self.set_id(entradaID.get())
@@ -229,6 +250,7 @@ class Productos(EntidadBase):
                 self.precioVenta = entradaPV.get()
             except:
                 messagebox.showerror("Error", "Todos los campos son obligatorios")
+                return
 
             try:
                 self.set_id(int(self.get_id()))
@@ -266,14 +288,17 @@ class Productos(EntidadBase):
         tk.Button(crearProductoFrame, text="Volver al menu de productos", font=("Arial", 12, "bold"),
                   command= lambda: cambiarFrame(crearProductoFrame, frame)).pack(pady=10)
 
+    # Metodo para actualizar el nombre del producto
     def actualizarProductos(self, con, ventana, frame):
             # Recorremos la BD con el objeto de Conexion
             cursorObj = con.cursor()
 
+            # Establecer el frame para la interfaz de Actualizar producto
             frame.pack_forget()
             actualizarProductoFrame = tk.Frame(ventana)
             actualizarProductoFrame.pack()
 
+            # Solicitud de entradas (ID del producto y su nuevo nombre)
             tk.Label(actualizarProductoFrame, text='Actualizar nombre del producto', font=('Arial', 18, 'bold')).pack(pady=10)
             tk.Label(actualizarProductoFrame, text='Rellene los siguientes campos:', font=('Arial', 12)).pack(pady=10)
 
@@ -284,6 +309,7 @@ class Productos(EntidadBase):
             entradaNombre = tk.Entry(actualizarProductoFrame)
             entradaNombre.pack()
 
+            # Funcion a ejecutar una vez presionado el boton de "Actualizar producto" con manejo de posibles errores
             def guardar():
                 try:
                     self.set_id(entradaID.get())
@@ -305,14 +331,16 @@ class Productos(EntidadBase):
                     messagebox.showinfo("Éxito", "Nombre del producto actualizado correctamente.")
                 except Exception as e:
                     messagebox.showerror("Error", f"Error al actualizar la base de datos. \n{e}")
+                    return
 
             tk.Button(actualizarProductoFrame, text="Actualizar Producto", font=("Arial", 12, "bold"),
                       command=guardar).pack(pady=10)
             tk.Button(actualizarProductoFrame, text="Volver al menú de productos", font=("Arial", 12, "bold"),
                       command=lambda: cambiarFrame(actualizarProductoFrame, frame)).pack(pady=10)
             
-
+# Clase de Clientes que herede el atributo y metodo de la clase EntidadBase
 class Clientes(EntidadBase):
+    # Atributos de la clase clientes
     def __init__(self):
         super().__init__()
         self.nombreCliente=None
@@ -320,7 +348,8 @@ class Clientes(EntidadBase):
         self.direccion=None 
         self.telefono=None 
         self.correo=None
-        
+
+    # Metodo para crear la tabla de clientes en la base de datos
     def crearTablaClientes(self,con):
         cursorObj=con.cursor()
         #recorremos la BD con el objeto de Conexion
@@ -337,14 +366,17 @@ class Clientes(EntidadBase):
         con.commit()
         #aseguramos la persistencia con el commit
 
+    # Metodo para crear un nuevo cliente en la base de datos
     def crearNuevoCliente(self,con, ventana, frame):
         # Recorremos la BD con el objeto de Conexion
         cursorObj = con.cursor()
 
+        # Establecer el frame para la interfaze para crear un nuevo cliente
         frame.pack_forget()
         crearClienteFrame = tk.Frame(ventana)
         crearClienteFrame.pack()
 
+        # Solicitud de entradas para el nuevo cliente
         tk.Label(crearClienteFrame, text='Crear nuevo cliente', font=("Arial", 18, "bold")).pack(pady=10)
         tk.Label(crearClienteFrame, text="Rellene los siguientes campos:", font=("Arial", 12)).pack(pady=10)
 
@@ -367,6 +399,7 @@ class Clientes(EntidadBase):
         entradaCorreo = tk.Entry(crearClienteFrame)
         entradaCorreo.pack()
 
+        # Funcion a ejecutar una vez presionado el boton "Crear nuevo cliente" con manejo de posibles errores en los tipos de dato de entrada ingresados
         def guardar():
             try:
                 self.set_id(entradaID.get())
@@ -377,16 +410,25 @@ class Clientes(EntidadBase):
                 self.correo = entradaCorreo.get()
             except:
                 messagebox.showerror("Error", "Todos los campos son obligatorios")
+                return
 
             try:
                 self.set_id(int(self.get_id()))
             except ValueError:
                 messagebox.showerror("Error", "El numero de identificacion del cliente debe ser un numero entero.")
+                return
 
             try:
                 self.telefono = int(self.telefono)
             except ValueError:
                 messagebox.showerror("Error", "El telefono del cliente debe ser un numero entero.")
+
+            if validate_email(self.correo):
+                pass
+            else:
+                messagebox.showerror("Error", "El correo es invalido.")
+                return
+
 
             try:
                 # Creamos la cadena con el sql a ejecutar
@@ -405,14 +447,17 @@ class Clientes(EntidadBase):
         tk.Button(crearClienteFrame, text="Volver al menu de clientes", font=("Arial", 12, "bold"),
                   command=lambda: cambiarFrame(crearClienteFrame, frame)).pack(pady=10)
 
+    # Metodo para actualizar la direccion de un cliente dado su ID
     def actualizarCliente(self,con, ventana, frame):
         # Recorremos la BD con el objeto de Conexion
         cursorObj = con.cursor()
 
+        # Establecer el frame para la interfaz de actualizar cliente
         frame.pack_forget()
         actualizarClienteFrame = tk.Frame(ventana)
         actualizarClienteFrame.pack()
 
+        # Solicitud de campos de entrada
         tk.Label(actualizarClienteFrame, text='Actualizar direccion del cliente', font=('Arial', 18, 'bold')).pack(pady=10)
         tk.Label(actualizarClienteFrame, text='Rellene los siguientes campos:', font=('Arial', 12)).pack(pady=10)
 
@@ -423,6 +468,7 @@ class Clientes(EntidadBase):
         entradaDireccion = tk.Entry(actualizarClienteFrame)
         entradaDireccion.pack()
 
+        # Funcion a ejecutar una vez presionado el boton de "Actualizar cliente" con manejo de posibles errores en las entradas ingresadas
         def guardar():
             try:
                 self.set_id(entradaID.get())
@@ -452,11 +498,12 @@ class Clientes(EntidadBase):
         tk.Button(actualizarClienteFrame, text="Volver al menu de clientes", font=("Arial", 12, "bold"),
                   command=lambda: cambiarFrame(actualizarClienteFrame, frame)).pack(pady=10)
     
-
+# Funcion para cambiar de frames para la interfaz
 def cambiarFrame(cerrarFrame, abrirFrame):
     cerrarFrame.pack_forget()
     abrirFrame.pack(fill="both", expand=True, padx=20, pady=20)
 
+# Funcion para crear la tabla de facturas
 def crearTablaFacturas(con):
     cursorObj=con.cursor()
     #recorremos la BD con el objeto de Conexion
@@ -471,7 +518,9 @@ def crearTablaFacturas(con):
     con.commit()
     #aseguramos la persistencia con el commit
 
+# Funcion para establecer el frame del menu principal
 def menu(con,objProductos,objClientes):
+    # Crear y abrir ventana de la interfaz de usuario, ajustando logo como icono e imagen
     ventana = tk.Tk()
     ventana.title('Cervezeria Artesanal')
     ventana.geometry('600x600')
@@ -492,6 +541,7 @@ def menu(con,objProductos,objClientes):
         frame.pack_forget()
         menuFrame.pack(fill="both", expand=True, padx=20, pady=20)
 
+    # Funcion para establecer el frame de la interfaz del menu de productos
     def menuProductos():
         menuFrame.pack_forget()
         productosFrame = tk.Frame(ventana)
@@ -510,6 +560,7 @@ def menu(con,objProductos,objClientes):
 
         productosFrame.pack(fill="both", expand=True, padx=20, pady=20)
 
+    # Funcion para establecer el frame de la interfaz del menu de clientes
     def menuClientes():
         menuFrame.pack_forget()
         clientesFrame = tk.Frame(ventana)
@@ -528,6 +579,7 @@ def menu(con,objProductos,objClientes):
 
         clientesFrame.pack(fill="both", expand=True, padx=20, pady=20)
 
+    # # Funcion para establecer el frame de la interfaz del menu de ventas
     def menuVentas():
         menuFrame.pack_forget()
         ventasFrame = tk.Frame(ventana)
@@ -537,14 +589,19 @@ def menu(con,objProductos,objClientes):
         titulo = tk.Label(ventasFrame, text='MENU DE VENTAS', font=("Arial", 18, "bold"))
         titulo.pack(pady=10)
 
+        # Crear la lista de carrito cuyos elementos seran tuplas con el codigo del producto y su cantidad
         carrito = []
         ID = None
+
+        # Crear un objeto de la clase Ventas
         misVentas = Ventas()
 
+        # Funcion auxiliar para cambiar el valor no local de la variable ID
         def cambiar(entradaIDcliente,botonSolicitarID, cursorObj):
             nonlocal ID
             ID = misVentas.solicitarIDCliente(entradaIDcliente,botonSolicitarID, cursorObj)
-        
+
+        # Solicitud de entradas
         tk.Label(ventasFrame, text="Ingrese el ID del cliente:", font=("Arial", 12)).pack(pady=10)
         entradaIDcliente = tk.Entry(ventasFrame)
         entradaIDcliente.pack()
@@ -574,12 +631,7 @@ def menu(con,objProductos,objClientes):
         botonVolver = tk.Button(ventasFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
                                 command=lambda: volverMenu(ventasFrame)).pack(pady=5)
 
-        # ID = misVentas.solicitarIDCliente(entradaIDcliente,botonSolicitarID, cursorObj)
-        # misVentas.agregarProducto(ID,entradaIDcliente,botonSolicitarID)
-        # misVentas.quitarProducto(ID)
-
-        
-
+        # Funcion para actualizar las cantidades mostradas del carrito
         def actualizarCarrito():
             for widget in carritoFrame.winfo_children():
                 widget.destroy()
@@ -590,6 +642,7 @@ def menu(con,objProductos,objClientes):
                 tk.Label(carritoFrame, text=f"{producto[1]} - Cantidad: {cantidad} - Precio: {producto[5]}",
                          font=("Arial", 12)).pack()
 
+        # Funcion para el frame de la interfaz de la factura, mostrarla en pantalla y enviarla al correo indicado (de ser posible)
         def factura():
             if carrito == []:
                 messagebox.showerror("Error", "El carrito se encuentra vacío.")
@@ -602,10 +655,12 @@ def menu(con,objProductos,objClientes):
             titulo = tk.Label(facturaFrame, text='FACTURA', font=("Arial", 18, "bold"))
             titulo.pack(pady=10)
 
+            # Obtener los datos del cliente
             cursorObj.execute(f"SELECT * FROM clientes WHERE Codigo = {ID}")
 
             cliente = cursorObj.fetchone()
 
+            # Desempaquetar los datos del cliente
             fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             nombre = cliente[1].strip()
             apellido = cliente[2].strip()
@@ -614,21 +669,24 @@ def menu(con,objProductos,objClientes):
             correo = cliente[5].strip()
             cedula = ID
 
-
+            # Separar los productos (sus datos) de sus cantidades
             productos = [compra[0] for compra in carrito]
             cantidad = [compra[1] for compra in carrito]
 
+            # Hallar el total a pagar por el cliente dado los productos de su carrito y sus cantidades
             total =sum(producto[5] * n for producto, n  in zip(productos,cantidad))
 
+            # Obtener toda la columna de numero de factura de la tabla de facturas
             cursorObj.execute(f"SELECT noFactura FROM facturas")
-
             numFacturas = cursorObj.fetchall()
 
+            # En caso de no haber facturas registradas, tomar el numero como 1. En otro caso, tomar el siguiente numero al ultimo numero de factura
             if numFacturas == []:
                 noFactura = 1
             else:
                 noFactura = numFacturas[-1][0] + 1
 
+            # Definir el texto a mostrar para la factura
             factura_texto = """
             ============================================
                              FACTURA
@@ -679,7 +737,8 @@ def menu(con,objProductos,objClientes):
             
             botonVolver = tk.Button(facturaFrame, text="Retornar al menu principal", font=("Arial", 12), width=30,
                                     command=lambda: volverMenu(facturaFrame)).pack(pady=5)
-            # ENVIAR AL E-MAIL
+
+            # Enviar al correo del cliente (En caso de ser posible)
             try:
                 remitente = "cerveceriaartesanalsa1@gmail.com"
 
@@ -697,12 +756,6 @@ def menu(con,objProductos,objClientes):
                 
             except Exception as e:
                 messagebox.showerror("Error", f"Error al enviar el correo.\n{e}")
-                
-            
-
-
-        
-
 
     boton1 = tk.Button(menuFrame, text="Menú de gestion de productos", font=("Arial", 12), width=30,
                        command= menuProductos).pack(pady=5)
